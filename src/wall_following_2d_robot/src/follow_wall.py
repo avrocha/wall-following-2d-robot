@@ -7,7 +7,7 @@ from geometry_msgs.msg import Twist
 import math
 
 #PD constants
-kp_d = 3                # Derivative constant distance error
+kp_d = 3                # Proportional constant distance error
 kd_d = 0.1              # Derivative constant distance error
 
 kp_a = 2                # Proportional constant angle error
