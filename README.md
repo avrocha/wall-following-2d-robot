@@ -19,9 +19,9 @@ $ catkin_make
 
 # Run
 ```shell
-'roslaunch stdr_launchers wall_follow_robot.launch'
+$ roslaunch stdr_launchers wall_follow_robot.launch
 ```
 
 ```shell
-'rosrun wall_following_2d_robot follow_wall.py'
+$ rosrun wall_following_2d_robot follow_wall.py
 ```
