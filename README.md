@@ -2,7 +2,7 @@
 ROBO@FEUP - 2nd Assignment - Wall Following 2D Robot using ROS and STDR simulator
 
 # STDR Simulator Configuration
-Copy all the contents of 'stdr_resources/maps' to the respective folder inside the stdr_resources package (use 'roscd stdr_resources/maps')\\
+Copy all the contents of 'stdr_resources/maps' to the respective folder inside the stdr_resources package (use 'roscd stdr_resources/maps')  
 Copy all the contents of 'stdr_resources/resources/robots' to the respective folder in the stdr_resources package (use 'roscd stdr_resources/resources/robots')
 
 # Build
