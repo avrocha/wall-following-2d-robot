@@ -18,6 +18,7 @@ $ catkin_make
 ```
 
 # Run
+Besides the terminal where "roscore" is running, there is the need to run the follow commands, by the following order, in different terminals.
 ```shell
 $ roslaunch stdr_launchers wall_follow_robot.launch
 ```
