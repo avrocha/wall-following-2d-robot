@@ -7,12 +7,10 @@ from geometry_msgs.msg import Twist
 
 # import math
 from math import pi as pi
-from circular_queue import CircularQueue
-
 
 direction = 1           # still deciding (now 1 is right & -1 is left)
 
-#PD constants
+#PD constants (may require further tunning)
 kp_d =  3              # Proportional constant distance error
 kd_d = 0.8            # Derivative constant distance error
 ki_d = -direction * 3            # Integrative constant distance error 
@@ -30,19 +28,13 @@ closest_beam_angle = 0  # Minimum distance beam angle
 error_dist = 0          # Difference between reference and measured distance
 error_angle = 0         # Angle deviation
 
-beam_15 = 0
-beam_35 = 0
+prox_beam = 0           ''' beam used as reference to slow down linear velocity 
+                         still in discussion if frontal beam or another one '''
 
-# buffer to implement Integration control
-buffer_I_size = 10
-buffer_I = CircularQueue(buffer_I_size)  
-# counter to fill up the buffer when initializing the program     
-counter_buffer_I = 0       
-# for now, implement Integrator only for distance error
 
 def callback_laser(data):
 
-    global closest_beam_dist, closest_beam_angle , beam_15, beam_35
+    global closest_beam_dist, closest_beam_angle , prox_beam
 
     min_index = 0
     for i in range(0, len(data.ranges)):
@@ -52,8 +44,7 @@ def callback_laser(data):
     closest_beam_dist = data.ranges[min_index]
     closest_beam_angle = (min_index - len(data.ranges)/2) * data.angle_increment
 
-    beam_15 = data.ranges[15]
-    beam_35 = data.ranges[28]
+    prox_beam = data.ranges[28] #using beam no. 28 (in 50 total), aprox 10h-11h 
 
 
 def follow_wall():
@@ -64,13 +55,19 @@ def follow_wall():
 
     if closest_beam_dist <= 0.95*ref_dist and direction == -1 :
         msg.linear.x = 0.05
-    elif beam_35 < ref_dist and direction == 1 :
+    elif prox_beam < ref_dist and direction == 1 :
         msg.linear.x = 0.05
     else:
         msg.linear.x = 0.15
 
+    '''NOTA : Due to the issue of permanent error (5% closer to the wall on 
+    the left and 5% further on the right), a distinction must be made between he 2  
+    directions. The detection for the regime on the left is automatic, while for 
+    the regime on the right, a detection mechanism for the inner corner is necessary, 
+    hence the use of "prox_beam" '''
+
+    #debug
     print(closest_beam_dist,msg.linear.x)
-    print(beam_15 , beam_35)
     
     delta_error_dist = (ref_dist - closest_beam_dist) - error_dist
     delta_error_angle = (direction*ref_angle - closest_beam_angle) - error_angle
@@ -78,18 +75,8 @@ def follow_wall():
     error_dist = (ref_dist - closest_beam_dist)
     error_angle = (direction*ref_angle - closest_beam_angle)
 
-    #filling buffer up (initialize)
-
-    if counter_buffer_I < buffer_I_size:
-        buffer_I.enqueue(error_dist)
-        int_error_dist = 0
-        counter_buffer_I = counter_buffer_I +1 
-       
-    else : 
-        buffer_I.dequeue()
-        buffer_I.enqueue(error_dist)
-        int_error_dist = buffer_I.sum
-
+    # acumulating error in int_error_dist
+    int_error_dist = int_errror_dist + error_dist
 
     #debug
     print("error_dist =", error_dist, "error_angle =", error_angle)
