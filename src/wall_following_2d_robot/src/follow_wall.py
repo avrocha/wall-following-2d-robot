@@ -10,39 +10,43 @@ from math import pi as pi
 from circular_queue import CircularQueue
 
 
-direction = 1           # still deciding (now 1 is right & -1 is left)
+direction = 1           # 1:right // -1:left
 
 #PD constants
-kp_d =  3              # Proportional constant distance error
-kd_d = 0.8            # Derivative constant distance error
-ki_d = -direction * 3            # Integrative constant distance error 
+kp_d =  5               # Proportional constant distance error
+kd_d = 0.8              # Derivative constant distance error
+ki_d = 1.5              # Integrative constant distance error 
 
-kp_a = 2            # Proportional constant angle error
-kd_a = 0.8              # Derivative constant angle error
+kp_a = 2                # Proportional constant angle error
+kd_a = 1.2              # Derivative constant angle error
 
 #PD references
-ref_dist = 0.2          # Reference distance
+ref_dist = 0.25          # Reference distance
 ref_angle = -pi/2        # Reference angle
 
-closest_beam_dist = 0   # Minimum distance to the wall
-closest_beam_angle = 0  # Minimum distance beam angle
+closest_beam_dist = 0    # Minimum distance to the wall
+closest_beam_angle = 0   # Minimum distance beam angle
 
 error_dist = 0          # Difference between reference and measured distance
 error_angle = 0         # Angle deviation
 
-beam_15 = 0
-beam_35 = 0
+beam_fr = 0         # front-right beam
+beam_fl = 0         # front-left beam
+beam_f = 0          # front beam
 
-# buffer to implement Integration control
 buffer_I_size = 10
-buffer_I = CircularQueue(buffer_I_size)  
-# counter to fill up the buffer when initializing the program     
+buffer_I = CircularQueue(buffer_I_size)       
 counter_buffer_I = 0       
-# for now, implement Integrator only for distance error
+
+
+count = 0 
+lin_vel_wander = 0.2 # initial value of wander linear velocity 
+
+state = 0 # initial state -> 0: wander // 1: follow_wall
 
 def callback_laser(data):
 
-    global closest_beam_dist, closest_beam_angle , beam_15, beam_35
+    global closest_beam_dist, closest_beam_angle , beam_fr, beam_fl, beam_f
 
     min_index = 0
     for i in range(0, len(data.ranges)):
@@ -52,25 +56,28 @@ def callback_laser(data):
     closest_beam_dist = data.ranges[min_index]
     closest_beam_angle = (min_index - len(data.ranges)/2) * data.angle_increment
 
-    beam_15 = data.ranges[15]
-    beam_35 = data.ranges[28]
+    states(data,min_index)
+
+    beam_f = data.ranges[len(data.ranges)/2-1]
+    beam_fr = data.ranges[len(data.ranges)/2-4]
+    beam_fl = data.ranges[len(data.ranges)/2+2]
 
 
 def follow_wall():
 
     global error_dist, error_angle , counter_buffer_I, buffer_I_size , buffer_I, closest_beam_angle
 
-    #linear velocity control
+    #inner corner detection
 
-    if closest_beam_dist <= 0.95*ref_dist and direction == -1 :
+    if (beam_fr < ref_dist and beam_f < ref_dist) or (beam_fl < ref_dist and beam_f < ref_dist):
         msg.linear.x = 0.05
-    elif beam_35 < ref_dist and direction == 1 :
-        msg.linear.x = 0.05
-    else:
-        msg.linear.x = 0.15
+    else : 
+        msg.linear.x = 0.25
 
-    print(closest_beam_dist,msg.linear.x)
-    print(beam_15 , beam_35)
+    # security condition 
+
+    if closest_beam_dist < 0.65*ref_dist :
+        msg.linear.x = 0.04
     
     delta_error_dist = (ref_dist - closest_beam_dist) - error_dist
     delta_error_angle = (direction*ref_angle - closest_beam_angle) - error_angle
@@ -90,14 +97,35 @@ def follow_wall():
         buffer_I.enqueue(error_dist)
         int_error_dist = buffer_I.sum
 
+    msg.angular.z = max(min(direction*(kp_d*error_dist+kd_d*delta_error_dist) - \
+        (kp_d*error_angle+kd_d*delta_error_angle) + (direction*ki_d * int_error_dist), 2.0), -2.0)
 
-    #debug
-    print("error_dist =", error_dist, "error_angle =", error_angle)
+def wander():
+    global count, lin_vel_wander
+    
+    count += 1
 
-    msg.angular.z = max(min(direction*(kp_d*error_dist+kd_d*delta_error_dist) - (kp_d*error_angle+kd_d*delta_error_angle) - (ki_d * int_error_dist), 2.0), -2.0)
+    if (count%100)==0:
+        lin_vel_wander = lin_vel_wander +0.05
+    
+    msg.linear.x = lin_vel_wander
+    msg.angular.z= 0.2
+
+def states(data,min_index):
+    global state, direction
+    if closest_beam_dist <= data.range_max and state == 0: # wander -> follow_wall
+        state = 1
+        if min_index >= len(data.ranges)/2 : # wall detected at left 
+            direction = -1
+        else: # wall detected at right
+            direction = 1
+
+    elif closest_beam_dist > data.range_max and state == 1 : # follow_wall -> wander 
+        state = 0
 
 def main():
     rospy.init_node('ReadLIDAR')
+    print("Robot initialized!\n")
 
     global msg
 
@@ -108,7 +136,10 @@ def main():
 
     while not rospy.is_shutdown():
         msg = Twist()
-        follow_wall()
+        if state == 1 : 
+            follow_wall()
+        elif state == 0:
+            wander()
         pub.publish(msg)
 
         rate.sleep()
