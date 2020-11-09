@@ -4,14 +4,15 @@ import rospy
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 
-# import math
+# import utils
 from math import pi as pi
 from circular_queue import CircularQueue
+import time
 
 direction = 1           # 1:right // -1:left
 
 #PD constants
-kp_d =  5               # Proportional constant distance error
+kp_d = 5                # Proportional constant distance error
 kd_d = 0.3              # Derivative constant distance error
 ki_d = 1.5              # Integrative constant distance error 
 
@@ -25,18 +26,18 @@ ref_angle = -pi/2        # Reference angle
 closest_beam_dist = 0    # Minimum distance to the wall
 closest_beam_angle = 0   # Minimum distance beam angle
 
-error_dist = 0          # Difference between reference and measured distance
-error_angle = 0         # Angle deviation
-
-beam_fr = 0             # front-right beam
-beam_fl = 0             # front-left beam
-beam_f = 0              # front beam
+error_dist = 0           # Difference between reference and measured distance
+error_angle = 0          # Angle deviation
+ 
+beam_fr = 0              # front-right beam
+beam_fl = 0              # front-left beam
+beam_f = 0               # front beam
 
 buffer_I_size = 10
 buffer_I = CircularQueue(buffer_I_size)       
 counter_buffer_I = 0       
 
-count = 0 
+start_time = 0          # real-time counter
 lin_vel_wander = 0.2    # initial value of wander linear velocity 
 
 state = 0               # initial state -> 0: wander // 1: follow_wall
@@ -98,20 +99,25 @@ def follow_wall():
         (kp_d*error_angle+kd_d*delta_error_angle), 2.0), -2.0)
 
 def wander():
-    global count, lin_vel_wander
     
-    count += 1
+    global count, lin_vel_wander, start_time
+    
+    elapsed_time = start_time - time.time()
 
-    if (count%100)==0:
-        lin_vel_wander = lin_vel_wander +0.05
-    
+    if elapsed_time > 10:  
+        lin_vel_wander += 0.05
+        start_time = time.time()
+
     msg.linear.x = lin_vel_wander
-    msg.angular.z= 0.2
+    msg.angular.z = 0.2
 
-def states(data,min_index):
+def states(data, min_index):
+    
     global state, direction
+
     if closest_beam_dist <= data.range_max and state == 0: # wander -> follow_wall
         state = 1
+
         if min_index >= len(data.ranges)/2 : # wall detected at left 
             direction = -1
         else: # wall detected at right
@@ -121,10 +127,12 @@ def states(data,min_index):
         state = 0
 
 def main():
+    
     rospy.init_node('ReadLIDAR')
+
     print("Robot initialized!\n")
 
-    global msg
+    global msg, start_time
 
     pub = rospy.Publisher('robot0/cmd_vel', Twist, queue_size=10)
     sub = rospy.Subscriber('robot0/laser0', LaserScan, callback_laser)
@@ -133,10 +141,18 @@ def main():
 
     while not rospy.is_shutdown():
         msg = Twist()
-        if state == 1 : 
+        if state == 1 :
+            if start_time != 0:
+                start_time =0 
+
             follow_wall()
+
         elif state == 0:
+            if start_time == 0:
+                start_time = time.time()
+            
             wander()
+        
         pub.publish(msg)
 
         rate.sleep()
