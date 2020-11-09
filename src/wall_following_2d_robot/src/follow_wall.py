@@ -1,6 +1,5 @@
 #! /usr/bin/env python
 
-
 import rospy
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
@@ -8,7 +7,6 @@ from geometry_msgs.msg import Twist
 # import math
 from math import pi as pi
 from circular_queue import CircularQueue
-
 
 direction = 1           # 1:right // -1:left
 
@@ -30,19 +28,18 @@ closest_beam_angle = 0   # Minimum distance beam angle
 error_dist = 0          # Difference between reference and measured distance
 error_angle = 0         # Angle deviation
 
-beam_fr = 0         # front-right beam
-beam_fl = 0         # front-left beam
-beam_f = 0          # front beam
+beam_fr = 0             # front-right beam
+beam_fl = 0             # front-left beam
+beam_f = 0              # front beam
 
 buffer_I_size = 10
 buffer_I = CircularQueue(buffer_I_size)       
 counter_buffer_I = 0       
 
-
 count = 0 
-lin_vel_wander = 0.2 # initial value of wander linear velocity 
+lin_vel_wander = 0.2    # initial value of wander linear velocity 
 
-state = 0 # initial state -> 0: wander // 1: follow_wall
+state = 0               # initial state -> 0: wander // 1: follow_wall
 
 def callback_laser(data):
 
@@ -97,8 +94,8 @@ def follow_wall():
         buffer_I.enqueue(error_dist)
         int_error_dist = buffer_I.sum
 
-    msg.angular.z = max(min(direction*(kp_d*error_dist+kd_d*delta_error_dist) - \
-        (kp_d*error_angle+kd_d*delta_error_angle) + (direction*ki_d * int_error_dist), 2.0), -2.0)
+    msg.angular.z = max(min(direction*(kp_d*error_dist + ki_d * int_error_dist + kd_d*delta_error_dist) - \
+        (kp_d*error_angle+kd_d*delta_error_angle), 2.0), -2.0)
 
 def wander():
     global count, lin_vel_wander
