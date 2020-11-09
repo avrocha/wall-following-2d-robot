@@ -12,7 +12,7 @@ direction = 1           # 1:right // -1:left
 
 #PD constants
 kp_d =  5               # Proportional constant distance error
-kd_d = 0.8              # Derivative constant distance error
+kd_d = 0.3              # Derivative constant distance error
 ki_d = 1.5              # Integrative constant distance error 
 
 kp_a = 2                # Proportional constant angle error
