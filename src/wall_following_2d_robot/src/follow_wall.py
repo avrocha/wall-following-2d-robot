@@ -9,14 +9,15 @@ from math import pi as pi
 from circular_queue import CircularQueue
 
 direction = 1           # 1:right // -1:left
+sample_time = 0.05
 
 #PD constants
 kp_d =  5               # Proportional constant distance error
-kd_d = 0.3              # Derivative constant distance error
+kd_d = 0.015            # Derivative constant distance error
 ki_d = 1.5              # Integrative constant distance error 
 
 kp_a = 2                # Proportional constant angle error
-kd_a = 1.2              # Derivative constant angle error
+kd_a = 0.06             # Derivative constant angle error
 
 #PD references
 ref_dist = 0.25          # Reference distance
@@ -63,7 +64,7 @@ def callback_laser(data):
 def follow_wall():
 
     global error_dist, error_angle , counter_buffer_I, buffer_I_size , buffer_I, closest_beam_angle
-
+    global sample_time
     #inner corner detection
 
     if (beam_fr < ref_dist and beam_f < ref_dist) or (beam_fl < ref_dist and beam_f < ref_dist):
@@ -94,8 +95,8 @@ def follow_wall():
         buffer_I.enqueue(error_dist)
         int_error_dist = buffer_I.sum
 
-    msg.angular.z = max(min(direction*(kp_d*error_dist + ki_d * int_error_dist + kd_d*delta_error_dist) - \
-        (kp_d*error_angle+kd_d*delta_error_angle), 2.0), -2.0)
+    msg.angular.z = max(min(direction*(kp_d*error_dist + ki_d * int_error_dist + kd_d*delta_error_dist/sample_time) - \
+        (kp_d*error_angle+kd_d*delta_error_angle/sample_time), 2.0), -2.0)
 
 def wander():
     global count, lin_vel_wander
