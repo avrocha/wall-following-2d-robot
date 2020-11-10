@@ -9,12 +9,10 @@ project(wall_following_2d_robot)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
-  nav_msgs
   rospy
   sensor_msgs
   std_msgs
   stdr_msgs
-  tf
 )
 
 ## System dependencies are found with CMake's conventions
