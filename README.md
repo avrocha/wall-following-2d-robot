@@ -18,7 +18,7 @@ $ catkin_make
 ```
 
 # Run
-Besides the terminal where "roscore" is running, there is the need to run the follow commands, by the following order, in different terminals.
+Besides the terminal where "roscore" is running, there is the need to run the follow commands, by the following order, in different terminals. The Open D-Shaped map, used in this assignment, is called  "D_map_with_robot.launch". However, other maps were built to allow the user to test the robot performance in them.
 ```shell_
 $ roslaunch stdr_launchers [map_name]_map_with_robot.launch
 ```
